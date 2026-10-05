@@ -44,3 +44,11 @@ tls_domains:
 
 # Домашняя сеть: SSH доступен только из неё
 lan_cidr: 192.168.1.0/24
+
+# backups: настройки rclone
+rclone_gdrive_client_id: "{{ vault_rclone_gdrive_client_id }}"
+rclone_gdrive_client_secret: "{{ vault_rclone_gdrive_client_secret }}"
+rclone_gdrive_token: "{{ vault_rclone_gdrive_token }}"
+rclone_gdrive_crypted_pass: "{{ vault_rclone_gdrive_crypted_pass }}"
+rclone_gdrive_crypted_salt_pass: "{{ vault_rclone_gdrive_crypted_salt_pass }}"
+rclone_gdrive_root_folder_id: "1KmdYA9y3vVDQmIWBksAomSh17L-tOR31"

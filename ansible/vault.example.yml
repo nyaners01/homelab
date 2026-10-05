@@ -19,3 +19,10 @@ vault_find_air_allowed_user_ids: "111111111,222222222"
 # иначе он не сможет прислать сообщение.
 vault_homelab_telegram_token: "123456:ABC-DEF"
 vault_nyaners_telegram_chat_id: "111111111"
+
+# Доступ rclone к Google Drive
+vault_rclone_gdrive_client_id: "..."
+vault_rclone_gdrive_client_secret: "..."
+vault_rclone_gdrive_token: '{"access_token":"...","token_type":"Bearer","refresh_token":"...","expires_in":3599}'
+vault_rclone_gdrive_crypted_pass: "вывод rclone obscure"
+vault_rclone_gdrive_crypted_salt_pass: "вывод rclone obscure"
