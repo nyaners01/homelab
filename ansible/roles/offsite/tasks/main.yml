@@ -19,3 +19,24 @@
     deb: "{{ offsite_deb_dest }}"
     allow_downgrade: true
   ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Каталог для конфига rclone
+  ansible.builtin.file:
+    path: /root/.config/rclone
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# diff: false, иначе --diff напечатает токены открытым текстом
+- name: Конфиг rclone
+  diff: false
+  ansible.builtin.template:
+    src: rclone.conf.j2
+    dest: /root/.config/rclone/rclone.conf
+    owner: root
+    group: root
+    mode: '0600'
+    # Ansible возвращает конфиг к шаблону, rclone потом снова обновляет токен;
+    # changed при повторном прогоне ожидаем, чтобы иметь возможность обновить данные при надобности
+    force: true
