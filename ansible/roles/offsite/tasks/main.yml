@@ -1,0 +1,21 @@
+- name: Каталог rclone
+  ansible.builtin.file:
+    path: "{{ offsite_cache_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: deb пакет rclone
+  ansible.builtin.get_url:
+    url: https://github.com/rclone/rclone/releases/download/{{ offsite_rclone_version }}/rclone-{{ offsite_rclone_version }}-linux-arm64.deb
+    checksum: sha256:https://github.com/rclone/rclone/releases/download/{{ offsite_rclone_version }}/SHA256SUMS
+    dest: "{{ offsite_deb_dest }}"
+    mode: '0600'
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: rclone из релиза на GitHub
+  ansible.builtin.apt:
+    deb: "{{ offsite_deb_dest }}"
+    allow_downgrade: true
+  ignore_errors: "{{ ansible_check_mode }}"

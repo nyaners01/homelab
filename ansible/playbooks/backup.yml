@@ -1,7 +1,9 @@
 - name: Бэкапы
   hosts: homelab
   become: true
-  # notify раньше backup: служба бэкапа ссылается на homelab-notify@
+  # notify раньше backup и offsite: их службы ссылаются на homelab-notify@.
+  # offsite после backup: отправляет архивы, которые создаёт backup.
   roles:
     - notify
     - backup
+    - offsite
