@@ -130,3 +130,11 @@ NAS, k3s переезжает на x86, Orange Pi остаётся входно�
 (пароли, `client_id`) перестали бы доходить до сервера без ручного удаления
 файла. Лучше видеть `changed`, чем потом выяснять, почему новая переменная
 не применилась.
+
+### Роль offsite модифицирует homelab-backup.service
+
+Решено 01.11.2026. Отправку в облако запускает systemd после успешного
+локального бэкапа: роль `offsite` кладёт drop-in
+`/etc/systemd/system/homelab-backup.service.d/homelab-offsite.conf` со строкой
+`OnSuccess=` на свою службу. Сам юнит `homelab-backup.service` и роль
+`backup` не меняются.

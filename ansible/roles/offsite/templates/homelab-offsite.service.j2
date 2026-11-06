@@ -1,0 +1,11 @@
+# Управляется Ansible, роль offsite
+[Unit]
+Description=Отправка бэкапов приложений по rclone
+# При ошибке прислать сообщение в Telegram, роль notify
+OnFailure=homelab-notify@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/homelab-offsite
+Nice=10
+IOSchedulingClass=idle

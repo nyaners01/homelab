@@ -40,3 +40,37 @@
     # Ansible возвращает конфиг к шаблону, rclone потом снова обновляет токен;
     # changed при повторном прогоне ожидаем, чтобы иметь возможность обновить данные при надобности
     force: true
+
+- name: Скрипт для отправки бэкапов
+  ansible.builtin.template:
+    src: homelab-offsite.sh.j2
+    dest: /usr/local/sbin/homelab-offsite
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Служба homelab-offsite
+  ansible.builtin.template:
+    src: homelab-offsite.service.j2
+    dest: "/etc/systemd/system/homelab-offsite.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Перечитать systemd
+
+- name: Каталог для override homelab-backup.service
+  ansible.builtin.file:
+    path: /etc/systemd/system/homelab-backup.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Override homelab-backup.service
+  ansible.builtin.template:
+    src: homelab-offsite.conf.j2
+    dest: /etc/systemd/system/homelab-backup.service.d/homelab-offsite.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Перечитать systemd
