@@ -1,3 +1,22 @@
 #!/bin/bash
 # Управляется Ansible, роль offsite. Ручной запуск: sudo homelab-offsite
 
+set -euo pipefail
+
+send_dir(){
+  local source_path=$1 dest_path=$2 retention=$3
+
+  rclone copy -v --stats-one-line \
+    "$source_path" \
+    "gdrive-backups-encrypted:$dest_path" || return 1
+  rclone delete -v --stats-one-line \
+    --min-age "${retention}d" \
+    "gdrive-backups-encrypted:$dest_path" || failed=1
+}
+
+failed=0
+{% for dir in offsite_source_dirs %}
+send_dir {{ dir.path | quote }} {{ dir.dest_path | quote }} {{ dir.retention_days }} || failed=1
+{% endfor %}
+
+exit $failed

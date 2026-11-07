@@ -10,7 +10,7 @@
 | ---------------- | --------------------------------------------------- |
 | Хост             | `orangepizero3`                                     |
 | Железо           | Orange Pi Zero3, Allwinner H618, ARM64              |
-| ОС               | Armbian community, ночная сборка на Ubuntu 26.04    |
+| ОС               | Armbian community, stable сборка на Ubuntu 26.04    |
 | Пользователь SSH | `nyaners`                                           |
 | LAN              | `192.168.1.0/24`, адрес `192.168.1.226` через DHCP  |
 

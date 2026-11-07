@@ -6,6 +6,8 @@
 #     и проверяются PRAGMA integrity_check;
 #   - остальные файлы копируются как есть, кроме исключённых каталогов;
 #   - всё упаковывается в {{ backup_dir }}/daily/<app>_<дата>.tar.gz.
+# Каждый каталог из <backup_extra_dirs> копируется как есть
+# и упаковывается в {{ backup_dir }}/daily/<name>_<дата>.tar.gz
 # По воскресеньям архив дополнительно кладётся в weekly/.
 # У каждого приложения хранятся {{ backup_keep_daily }} последних daily и
 # {{ backup_keep_weekly }} последних weekly архивов. Старые удаляются только после
@@ -31,7 +33,35 @@ prune() {
   rm -f -- "${files[@]:0:$#-keep}"
 }
 
-# Внимание: функция вызывается как «backup_app ... || failed=1», а в таком
+# Внимание: функция вызывается как "backup_extra_dir ... || failed=1", а в таком
+# контексте bash отключает set -e внутри неё. Поэтому каждая команда здесь
+# проверяется явно, и любая ошибка возвращает 1 без архива.
+backup_extra_dir() {
+  local name=$1 src=$2
+  local out
+
+  fail() {
+    echo "$name: $*" >&2
+    return 1
+  }
+
+  [ -d "$src" ] || { fail "нет каталога $src"; return 1; }
+
+  out="$DEST/daily/${name}_${DATE}.tar.gz"
+  tar -C "$src" -czf "$out.tmp" . || { rm -f "$out.tmp"; fail "не удалось упаковать архив"; return 1; }
+  mv "$out.tmp" "$out" || { fail "не удалось сохранить $out"; return 1; }
+
+  if [ "$(date +%u)" = 7 ]; then
+    cp "$out" "$DEST/weekly/" || { fail "не удалось скопировать архив в weekly"; return 1; }
+  fi
+
+  prune "$DEST/daily" "$name" {{ backup_keep_daily }} || { fail "не удалось удалить старые daily"; return 1; }
+  prune "$DEST/weekly" "$name" {{ backup_keep_weekly }} || { fail "не удалось удалить старые weekly"; return 1; }
+
+  echo "$name: $(du -h "$out" | cut -f1) $out"
+}
+
+# Внимание: функция вызывается как "backup_app ... || failed=1", а в таком
 # контексте bash отключает set -e внутри неё. Поэтому каждая команда здесь
 # проверяется явно, и любая ошибка возвращает 1 без архива.
 backup_app() {
@@ -97,6 +127,10 @@ backup_app() {
 failed=0
 {% for app in apps if app.backup is defined %}
 backup_app {{ app.name | quote }} {{ app.backup.sqlite | join(' ') | quote }} {{ app.backup.exclude | join(' ') | quote }} || failed=1
+{% endfor %}
+
+{% for extra_dir in backup_extra_dirs %}
+backup_extra_dir {{ extra_dir.name | quote }} {{ extra_dir.path | quote }} || failed=1
 {% endfor %}
 
 exit $failed

@@ -24,6 +24,12 @@
   [vaultwarden.nyaners.ru.conf](../services/network/nginx/sites-available/vaultwarden.nyaners.ru.conf#L51-L56)
   добавлены certbot, а не репозиторием. Разобраться, как держать их под
   контролем конфигурации.
+- **Медленный apt update на сервере.** Репозиторий `http://beta.armbian.com`
+  перенаправляет на `fi.mirror.armbian.de`, который отвечает по 10 с на файл
+  или не отвечает вовсе. Задача `notify` с `update_cache` висит 2–3 минуты
+  раз в сутки. Варианты: таймаут `Acquire::http::Timeout` через файл в
+  `/etc/apt/apt.conf.d/`, разложенный Ansible; прямое рабочее зеркало вместо
+  редиректора. Отдельно решить, нужен ли серверу beta-репозиторий Armbian.
 - **Внутренний DNS (split DNS).** Сейчас из дома домены резолвятся через
   публичный DNS reg.ru во внешний IP, и работа из LAN зависит от NAT loopback
   на роутере. Сделать так, чтобы роутер (OpenWrt, dnsmasq) сам отвечал на
@@ -138,3 +144,4 @@ NAS, k3s переезжает на x86, Orange Pi остаётся входно�
 `/etc/systemd/system/homelab-backup.service.d/homelab-offsite.conf` со строкой
 `OnSuccess=` на свою службу. Сам юнит `homelab-backup.service` и роль
 `backup` не меняются.
+offsite устроена как плагин к backup.

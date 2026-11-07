@@ -8,3 +8,9 @@ backup_keep_weekly: 4
 
 # Когда запускать, время сервера (UTC). 00:30 UTC это 03:30 по Москве.
 backup_on_calendar: "*-*-* 00:30:00"
+
+# Папки для копирования "как есть"
+# Имена не должны пересекаться с apps.name иначе начнет перезатирать
+backup_extra_dirs:
+  - name: letsencrypt
+    path: /etc/letsencrypt

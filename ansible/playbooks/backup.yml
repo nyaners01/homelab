@@ -6,4 +6,12 @@
   roles:
     - notify
     - backup
-    - offsite
+    - role: offsite
+      vars:
+        offsite_source_dirs:
+          - path: "{{ backup_dir }}/daily"
+            dest_path: "/backup/daily"
+            retention_days: "{{ backup_keep_daily | int + 1 }}"
+          - path: "{{ backup_dir }}/weekly"
+            retention_days: "{{ backup_keep_weekly | int * 7 + 1 }}"
+            dest_path: "/backup/weekly"
