@@ -4,14 +4,17 @@
 set -euo pipefail
 
 send_dir(){
-  local source_path=$1 dest_path=$2 retention=$3
+  local source_path=$1 dest_path=$2 retention_days=$3 retention_hours
+
+  # Архив возрастом ровно N дней лежит на границе N×24h; вычитаем 6h, чтобы он удалялся, даже если бэкап отработал с опозданием
+  retention_hours=$((retention_days * 24 - 6))
 
   rclone copy -v --stats-one-line \
     "$source_path" \
     "gdrive-backups-encrypted:$dest_path" || return 1
   rclone delete -v --stats-one-line \
-    --min-age "${retention}d" \
-    "gdrive-backups-encrypted:$dest_path" || failed=1
+    --min-age "${retention_hours}h" \
+    "gdrive-backups-encrypted:$dest_path" || return 1
 }
 
 failed=0
