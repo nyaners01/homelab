@@ -2,7 +2,7 @@ name: findair
 
 services:
   findair:
-    image: ghcr.io/nyaners01/findair:1.1.0
+    image: ghcr.io/nyaners01/findair:1.2.0
     container_name: findair
     restart: unless-stopped
     env_file: ./find-air.env
