@@ -14,7 +14,8 @@ send_dir(){
     "gdrive-backups-encrypted:$dest_path" || return 1
   rclone delete -v --stats-one-line \
     --min-age "${retention_hours}h" \
-    "gdrive-backups-encrypted:$dest_path" || return 1
+    "gdrive-backups-encrypted:$dest_path" \
+    --drive-use-trash=false  || return 1
 }
 
 failed=0
