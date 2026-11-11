@@ -85,7 +85,7 @@ S3-совместимое хранилище с Object Lock или на pull с�
   зашито. Строка `gdrive-backups-encrypted` повторяется в `rclone.conf.j2`,
   в скрипте и в README. Одна переменная `offsite_remote` в defaults уберёт
   расхождение.
-- Переменные `rclone_gdrive_*` не имеют префикса роли и не описаны в
+- ✅ Исправлено в `475cd34`. Переменные `rclone_gdrive_*` не имеют префикса роли и не описаны в
   `argument_specs`, в отличие от `offsite_source_dirs`. Либо переименуй в
   `offsite_*`, либо объяви их в спецификации как обязательные.
 - Коллизия имён между `backup_extra_dirs[].name` и `apps[].name` защищена
