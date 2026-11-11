@@ -1,13 +1,13 @@
 [{{ offsite_rclone_remote_name }}]
 type = drive
-client_id = {{ rclone_gdrive_client_id }}
-client_secret = {{ rclone_gdrive_client_secret }}
+client_id = {{ offsite_rclone_gdrive_client_id }}
+client_secret = {{ offsite_rclone_gdrive_client_secret }}
 scope = drive.file
-token = {{ rclone_gdrive_token }}
-root_folder_id = {{ rclone_gdrive_root_folder_id }}
+token = {{ offsite_rclone_gdrive_token }}
+root_folder_id = {{ offsite_rclone_gdrive_root_folder_id }}
 
 [{{ offsite_rclone_encrypted_remote_name }}]
 type = crypt
 remote = {{ offsite_rclone_remote_name }}:
-password = {{ rclone_gdrive_crypted_pass }}
-password2 = {{ rclone_gdrive_crypted_salt_pass }}
+password = {{ offsite_rclone_gdrive_crypted_pass }}
+password2 = {{ offsite_rclone_gdrive_crypted_salt_pass }}

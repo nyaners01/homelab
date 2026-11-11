@@ -2,22 +2,57 @@ argument_specs:
   main:
     short_description: "Отправка данных по rclone"
     options:
+      offsite_rclone_gdrive_client_id:
+        type: str
+        required: true
+        description:
+          - "Client ID своего OAuth-клиента в Google Cloud Console. Свой, а не общий клиент rclone, чтобы не упираться в его лимиты запросов"
+      offsite_rclone_gdrive_client_secret:
+        type: str
+        required: true
+        description:
+          - "Client secret того же OAuth-клиента. Секрет, хранится в Vault"
+      offsite_rclone_gdrive_token:
+        type: str
+        required: true
+        description:
+          - "OAuth-токен в JSON, вывод `rclone authorize \"drive\"` на ПК с браузером. Содержит refresh_token, по которому rclone сам обновляет доступ. Секрет, хранится в Vault"
+      offsite_rclone_remote_name:
+        type: str
+        required: true
+        description:
+          - "Имя remote Google Drive в rclone.conf. Зашифрованный remote называется так же с суффиксом -encrypted"
+      offsite_rclone_gdrive_crypted_pass:
+        type: str
+        required: true
+        description:
+          - "Пароль crypt (password в rclone.conf), вывод `rclone obscure`. Без него архивы в облаке не расшифровать. Секрет, хранится в Vault и в наборе для выживания"
+      offsite_rclone_gdrive_crypted_salt_pass:
+        type: str
+        required: true
+        description:
+          - "Соль crypt (password2 в rclone.conf), вывод `rclone obscure`. Нужна для расшифровки вместе с паролем. Секрет, хранится в Vault и в наборе для выживания"
+      offsite_rclone_gdrive_root_folder_id:
+        type: str
+        required: true
+        description:
+          - "ID папки в Google Drive, внутри которой работает rclone: последняя часть URL папки в веб-интерфейсе. Папка должна быть создана самим rclone, иначе со scope drive.file он её не увидит"
       offsite_source_dirs:
         type: list
         elements: dict
         required: true
         description:
-          - "Папки для отправки"
+          - "Локальные каталоги, которые отправляются в облако, и срок хранения копий для каждого"
         options:
           path:
             type: path
             required: true
-            description: "Абсолютный путь к директории"
+            description: "Абсолютный путь к локальному каталогу на сервере"
           dest_path:
             type: str
             required: true
-            description: "Путь в rclone"
+            description: "Путь внутри зашифрованного remote, например /backup/daily"
           retention_days:
             type: int
             required: true
-            description: "Сколько дней хранить"
+            description: "Сколько дней хранить копии в облаке. Архивы старше (дни × 24 − 6) часов удаляются мимо корзины"
