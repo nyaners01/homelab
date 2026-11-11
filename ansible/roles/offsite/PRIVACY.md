@@ -1,8 +1,8 @@
-# Privacy Policy for homelab-backup
+# Privacy Policy for homelab-offsite
 
-Last updated: 2026-10-03
+Last updated: 2026-11-11
 
-homelab-backup is a personal backup tool. It is used only by its owner
+homelab-offsite is a personal backup tool. It is used only by its owner
 to store backups of their own home server in their own Google Drive.
 
 ## Data the app accesses
