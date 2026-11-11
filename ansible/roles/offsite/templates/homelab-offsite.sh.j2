@@ -11,10 +11,10 @@ send_dir(){
 
   rclone copy -v --stats-one-line \
     "$source_path" \
-    "gdrive-backups-encrypted:$dest_path" || return 1
+    "{{ offsite_rclone_encrypted_remote_name }}:$dest_path" || return 1
   rclone delete -v --stats-one-line \
     --min-age "${retention_hours}h" \
-    "gdrive-backups-encrypted:$dest_path" \
+    "{{ offsite_rclone_encrypted_remote_name }}:$dest_path" \
     --drive-use-trash=false  || return 1
 }
 

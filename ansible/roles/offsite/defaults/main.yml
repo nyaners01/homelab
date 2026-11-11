@@ -3,3 +3,7 @@ offsite_rclone_version: v1.75.2
 # Место хранения deb пакета
 offsite_cache_dir: /var/cache/rclone
 offsite_deb_dest: "{{ offsite_cache_dir }}/rclone-{{ offsite_rclone_version }}-linux-arm64.deb"
+
+# Названия remote для rclone
+offsite_rclone_remote_name: gdrive-backups
+offsite_rclone_encrypted_remote_name: "{{ offsite_rclone_remote_name }}-encrypted"
