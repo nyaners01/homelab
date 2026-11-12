@@ -33,32 +33,37 @@ prune() {
   rm -f -- "${files[@]:0:$#-keep}"
 }
 
+# Упаковать $3 из каталога $2 в daily/<$1>_<дата>.tar.gz, по воскресеньям
+# скопировать архив в weekly/, затем удалить старые архивы.
+# Вызывается из функций, где set -e уже отключён, поэтому каждая команда
+# проверяется явно. Свой fail здесь не объявляется: функции в bash глобальные,
+# и он подменил бы fail вызывающей функции.
+save_archive() {
+  local name=$1 dir=$2 path=$3
+  local out="$DEST/daily/${name}_${DATE}.tar.gz"
+
+  tar -C "$dir" -czf "$out.tmp" "$path" || { rm -f "$out.tmp"; echo "$name: не удалось упаковать архив" >&2; return 1; }
+  mv "$out.tmp" "$out" || { echo "$name: не удалось сохранить $out" >&2; return 1; }
+
+  if [ "$(date +%u)" = 7 ]; then
+    cp "$out" "$DEST/weekly/" || { echo "$name: не удалось скопировать архив в weekly" >&2; return 1; }
+  fi
+
+  prune "$DEST/daily" "$name" {{ backup_keep_daily }} || { echo "$name: не удалось удалить старые daily" >&2; return 1; }
+  prune "$DEST/weekly" "$name" {{ backup_keep_weekly }} || { echo "$name: не удалось удалить старые weekly" >&2; return 1; }
+
+  echo "$name: $(du -h "$out" | cut -f1) $out"
+}
+
 # Внимание: функция вызывается как "backup_extra_dir ... || failed=1", а в таком
 # контексте bash отключает set -e внутри неё. Поэтому каждая команда здесь
 # проверяется явно, и любая ошибка возвращает 1 без архива.
 backup_extra_dir() {
   local name=$1 src=$2
-  local out
 
-  fail() {
-    echo "$name: $*" >&2
-    return 1
-  }
+  [ -d "$src" ] || { echo "$name: нет каталога $src" >&2; return 1; }
 
-  [ -d "$src" ] || { fail "нет каталога $src"; return 1; }
-
-  out="$DEST/daily/${name}_${DATE}.tar.gz"
-  tar -C "$src" -czf "$out.tmp" . || { rm -f "$out.tmp"; fail "не удалось упаковать архив"; return 1; }
-  mv "$out.tmp" "$out" || { fail "не удалось сохранить $out"; return 1; }
-
-  if [ "$(date +%u)" = 7 ]; then
-    cp "$out" "$DEST/weekly/" || { fail "не удалось скопировать архив в weekly"; return 1; }
-  fi
-
-  prune "$DEST/daily" "$name" {{ backup_keep_daily }} || { fail "не удалось удалить старые daily"; return 1; }
-  prune "$DEST/weekly" "$name" {{ backup_keep_weekly }} || { fail "не удалось удалить старые weekly"; return 1; }
-
-  echo "$name: $(du -h "$out" | cut -f1) $out"
+  save_archive "$name" "$src" .
 }
 
 # Внимание: функция вызывается как "backup_app ... || failed=1", а в таком
@@ -69,7 +74,7 @@ backup_app() {
   local sqlite=$2
   local exclude=$3
   local src={{ apps_base_dir }}/$app/data
-  local work="" out db check
+  local work="" db check
 
   fail() {
     echo "$app: $*" >&2
@@ -108,20 +113,8 @@ backup_app() {
     [ "$check" = "ok" ] || { fail "копия $db не прошла проверку: $check"; return 1; }
   done
 
-  out="$DEST/daily/${app}_${DATE}.tar.gz"
-  tar -C "$work" -czf "$out.tmp" data || { rm -f "$out.tmp"; fail "не удалось упаковать архив"; return 1; }
-  mv "$out.tmp" "$out" || { fail "не удалось сохранить $out"; return 1; }
+  save_archive "$app" "$work" data || { rm -rf "$work"; return 1; }
   rm -rf "$work"
-  work=""
-
-  if [ "$(date +%u)" = 7 ]; then
-    cp "$out" "$DEST/weekly/" || { fail "не удалось скопировать архив в weekly"; return 1; }
-  fi
-
-  prune "$DEST/daily" "$app" {{ backup_keep_daily }} || { fail "не удалось удалить старые daily"; return 1; }
-  prune "$DEST/weekly" "$app" {{ backup_keep_weekly }} || { fail "не удалось удалить старые weekly"; return 1; }
-
-  echo "$app: $(du -h "$out" | cut -f1) $out"
 }
 
 failed=0
