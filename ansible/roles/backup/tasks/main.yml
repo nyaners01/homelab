@@ -1,3 +1,17 @@
+- name: Проверка, что названия архивов не будут пересекаться
+  vars:
+    apps_names: "{{ apps | map(attribute='name') | list }}"
+    dirs_names: "{{ backup_extra_dirs | map(attribute='name') | list }}"
+    all_names: "{{ apps_names + dirs_names }}"
+    unique_names: "{{ all_names | unique }}"
+  ansible.builtin.assert:
+    that:
+      - all_names | length == unique_names | length
+    fail_msg: |
+      Имена архивов не должны пересекаться:
+        apps: {{ apps_names | join(', ') }}
+        backup_extra_dirs: {{ dirs_names | join(', ') }}
+
 - name: sqlite3 для онлайн-копий баз
   ansible.builtin.apt:
     name: sqlite3
