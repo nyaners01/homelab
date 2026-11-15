@@ -60,6 +60,23 @@ chmod 600 ~/.ssh/id_ed25519
 ssh-keyscan 192.168.1.226 >> ~/.ssh/known_hosts
 ```
 
+**Ansible и линтеры.** Ставятся через pipx, системный Ansible из apt не
+используется. Ansible идёт как зависимость ansible-lint, поэтому playbook и
+линтер работают из одного окружения и на одной версии ansible-core:
+
+```sh
+sudo apt install pipx
+pipx ensurepath
+pipx install --include-deps ansible-lint   # ansible-lint и ansible, ansible-playbook, ansible-galaxy
+pipx install yamllint
+pipx install pre-commit
+ansible-lint --version                     # видно, с каким ansible-core он работает
+```
+
+`pipx upgrade ansible-lint` или `pipx upgrade-all` обновляет и ansible-core,
+которым применяется playbook на сервер. После обновления сначала прогнать
+`--check --diff`.
+
 **Коллекции.**
 
 ```sh
