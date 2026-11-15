@@ -71,8 +71,8 @@ Encrypt):
 - базы SQLite копируются онлайн через `sqlite3 .backup`, без остановки
   контейнера, и проверяются `PRAGMA integrity_check`;
 - остальные файлы из `data` копируются как есть, кроме кэшей;
-- архивы лежат в `/var/backups/homelab/daily`, по воскресеньям копия
-  уходит в `weekly`;
+- архивы лежат в `/var/backups/homelab/daily`, а воскресный — только в
+  `weekly`, без копии в `daily`;
 - у каждого приложения хранятся 7 последних ежедневных и 4 последних
   недельных архива. Старые удаляются только после успешного нового, поэтому
   неудачные запуски ничего не стирают;
@@ -92,8 +92,8 @@ Encrypt):
   имена файлов шифруются на сервере, Google хранит только шифр;
 - команда `rclone copy`, а не `sync`: удаление локально не удаляет копию в
   облаке. Старые архивы удаляет отдельный `rclone delete --min-age` мимо
-  корзины Drive, срок тот же, что локально: в облаке 7 ежедневных и 4
-  недельных архива;
+  корзины Drive, срок тот же, что локально: в облаке архивы за последние
+  7 дней и 4 недельных;
 - если отправка упала, приходит сообщение в Telegram, как и для бэкапа.
 
 Имена remote здесь и ниже — значения по умолчанию из
@@ -115,6 +115,8 @@ sudo rclone lsl gdrive-backups-encrypted:backup
 rclone copy <remote-crypt>:backup/daily/<app>_<дата>.tar.gz ~/Downloads
 ```
 
+Воскресный архив лежит в `backup/weekly`, а не в `backup/daily`.
+
 ### Набор для выживания
 
 Чтобы восстановиться, если сервер и vaultwarden потеряны одновременно,
@@ -133,8 +135,11 @@ vaultwarden, в этом репозитории, в Google Drive и на ПК в
 ```sh
 sudo systemctl start homelab-backup
 journalctl -u homelab-backup -n 20
-sudo ls -lh /var/backups/homelab/daily
+sudo ls -lh /var/backups/homelab/daily /var/backups/homelab/weekly
 ```
+
+Самый свежий архив обычно в `daily`, но после воскресного запуска — в
+`weekly`. Перед восстановлением смотри оба каталога.
 
 Восстановить приложение из архива:
 
@@ -142,7 +147,7 @@ sudo ls -lh /var/backups/homelab/daily
 cd /opt/<app>
 sudo docker compose down
 sudo mv data data.broken
-sudo tar -xzf /var/backups/homelab/daily/<app>_<дата>.tar.gz
+sudo tar -xzf /var/backups/homelab/<daily|weekly>/<app>_<дата>.tar.gz
 sudo docker compose up -d
 ```
 

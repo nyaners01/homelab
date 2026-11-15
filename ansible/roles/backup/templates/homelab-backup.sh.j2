@@ -8,7 +8,8 @@
 #   - всё упаковывается в {{ backup_dir }}/daily/<app>_<дата>.tar.gz.
 # Каждый каталог из <backup_extra_dirs> копируется как есть
 # и упаковывается в {{ backup_dir }}/daily/<name>_<дата>.tar.gz
-# По воскресеньям архив дополнительно кладётся в weekly/.
+# По воскресеньям архив пишется только в weekly/, а не в daily/: иначе
+# один и тот же файл лежал бы в двух каталогах и дважды уходил в облако.
 # У каждого приложения хранятся {{ backup_keep_daily }} последних daily и
 # {{ backup_keep_weekly }} последних weekly архивов. Старые удаляются только после
 # успешного нового архива, поэтому неудачные запуски ничего не стирают.
@@ -18,6 +19,11 @@ umask 077
 
 DEST={{ backup_dir }}
 DATE=$(date +%F)
+PERIOD="daily"
+if [ "$(date +%u)" = 7 ]; then
+  PERIOD="weekly"
+fi
+
 mkdir -p "$DEST/daily" "$DEST/weekly"
 
 # Оставить в каталоге $1 только $3 последних архивов приложения $2.
@@ -33,21 +39,17 @@ prune() {
   rm -f -- "${files[@]:0:$#-keep}"
 }
 
-# Упаковать $3 из каталога $2 в daily/<$1>_<дата>.tar.gz, по воскресеньям
-# скопировать архив в weekly/, затем удалить старые архивы.
+# Упаковать $3 из каталога $2 в $PERIOD/<$1>_<дата>.tar.gz (daily/, по
+# воскресеньям weekly/), затем удалить старые архивы.
 # Вызывается из функций, где set -e уже отключён, поэтому каждая команда
 # проверяется явно. Свой fail здесь не объявляется: функции в bash глобальные,
 # и он подменил бы fail вызывающей функции.
 save_archive() {
   local name=$1 dir=$2 path=$3
-  local out="$DEST/daily/${name}_${DATE}.tar.gz"
+  local out="$DEST/$PERIOD/${name}_${DATE}.tar.gz"
 
   tar -C "$dir" -czf "$out.tmp" "$path" || { rm -f "$out.tmp"; echo "$name: не удалось упаковать архив" >&2; return 1; }
   mv "$out.tmp" "$out" || { echo "$name: не удалось сохранить $out" >&2; return 1; }
-
-  if [ "$(date +%u)" = 7 ]; then
-    cp "$out" "$DEST/weekly/" || { echo "$name: не удалось скопировать архив в weekly" >&2; return 1; }
-  fi
 
   prune "$DEST/daily" "$name" {{ backup_keep_daily }} || { echo "$name: не удалось удалить старые daily" >&2; return 1; }
   prune "$DEST/weekly" "$name" {{ backup_keep_weekly }} || { echo "$name: не удалось удалить старые weekly" >&2; return 1; }
