@@ -60,24 +60,7 @@ chmod 600 ~/.ssh/id_ed25519
 ssh-keyscan 192.168.1.226 >> ~/.ssh/known_hosts
 ```
 
-**Версии.** Ansible и линтеры ставятся через pipx, системный Ansible из apt
-не используется. ansible-core идёт как зависимость ansible-lint
-(`pipx install --include-deps ansible-lint`), поэтому playbook и линтер
-работают на одной версии. Проверено 15.11.2026:
-
-| Что | Версия | Как стоит |
-|---|---|---|
-| Python | 3.14.4 | системный, в нём venv pipx |
-| pipx | 1.8.0 | apt |
-| ansible-core | 2.22.0 | pipx, в venv ansible-lint |
-| ansible-lint | 26.11.0 | pipx |
-| yamllint | 1.38.0 | pipx |
-| pre-commit | 4.7.0 | pipx |
-| community.docker | 5.4.0 | `ansible-galaxy`, `~/.ansible/collections` |
-
-Узнать текущие: `ansible-lint --version`, `yamllint --version`,
-`pre-commit --version`, `ansible-galaxy collection list`. После обновления
-через pipx поправить таблицу и сначала прогнать `--check --diff`.
+**Версия Ansible.** ansible-core 2.22.0.
 
 **Коллекции.**
 
