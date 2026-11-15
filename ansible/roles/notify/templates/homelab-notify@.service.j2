@@ -3,6 +3,8 @@
 # %i, а не %I: %I превратил бы дефисы в имени юнита в слеши.
 [Unit]
 Description=Уведомление в Telegram об ошибке %i
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot

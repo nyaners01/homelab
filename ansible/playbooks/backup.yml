@@ -1,7 +1,17 @@
 - name: Бэкапы
   hosts: homelab
   become: true
-  # notify раньше backup: служба бэкапа ссылается на homelab-notify@
+  # notify раньше backup и offsite: их службы ссылаются на homelab-notify@.
+  # offsite после backup: отправляет архивы, которые создаёт backup.
   roles:
     - notify
     - backup
+    - role: offsite
+      vars:
+        offsite_source_dirs:
+          - path: "{{ backup_dir }}/daily"
+            dest_path: "/backup/daily"
+            retention_days: "{{ backup_keep_daily | int }}"
+          - path: "{{ backup_dir }}/weekly"
+            retention_days: "{{ backup_keep_weekly | int * 7 }}"
+            dest_path: "/backup/weekly"

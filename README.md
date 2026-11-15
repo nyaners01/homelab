@@ -10,7 +10,7 @@
 | ---------------- | --------------------------------------------------- |
 | Хост             | `orangepizero3`                                     |
 | Железо           | Orange Pi Zero3, Allwinner H618, ARM64              |
-| ОС               | Armbian community, ночная сборка на Ubuntu 26.04    |
+| ОС               | Armbian community, stable сборка на Ubuntu 26.04    |
 | Пользователь SSH | `nyaners`                                           |
 | LAN              | `192.168.1.0/24`, адрес `192.168.1.226` через DHCP  |
 
@@ -34,6 +34,8 @@ orangepizero3 (192.168.1.226)
    |     +-- findair       портов нет, ходит в Telegram API сам
    |
    +-- sshd :22  <-- ПК (Windows 11, Ansible из WSL) по LAN
+   |
+   +-- rclone --> Google Drive, архивы бэкапов в зашифрованном виде
 ```
 
 ## Сервисы
@@ -62,13 +64,15 @@ orangepizero3 (192.168.1.226)
 ## Бэкапы
 
 Каждую ночь в 00:30 UTC (03:30 по Москве) таймер `homelab-backup.timer`
-собирает архив данных каждого приложения:
+собирает архив данных каждого приложения и каталога `/etc/letsencrypt`
+(сертификаты нужны сразу после восстановления, иначе ждать лимит Let's
+Encrypt):
 
 - базы SQLite копируются онлайн через `sqlite3 .backup`, без остановки
   контейнера, и проверяются `PRAGMA integrity_check`;
 - остальные файлы из `data` копируются как есть, кроме кэшей;
-- архивы лежат в `/var/backups/homelab/daily`, по воскресеньям копия
-  уходит в `weekly`;
+- архивы лежат в `/var/backups/homelab/daily`, а воскресный — только в
+  `weekly`, без копии в `daily`;
 - у каждого приложения хранятся 7 последних ежедневных и 4 последних
   недельных архива. Старые удаляются только после успешного нового, поэтому
   неудачные запуски ничего не стирают;
@@ -76,18 +80,66 @@ orangepizero3 (192.168.1.226)
   журнал её последнего запуска. Проверить доставку:
   `sudo systemctl start homelab-notify@test.service`.
 
-> **Внимание: бэкапы пока лежат на той же SD-карте, что и система.** Они
-> спасают от ошибок, порчи базы и неудачных обновлений, но не от смерти
-> карты, кражи или пожара. Дополнительного хранилища пока нет, см.
-> [план](docs/plan.md).
+### Копия в облаке
+
+После успешного локального бэкапа systemd запускает
+`homelab-offsite.service` (роль `offsite`). Он отправляет `daily` и `weekly`
+в отдельную папку Google Drive через rclone:
+
+- remote `gdrive-backups` — Google Drive со своим OAuth-клиентом,
+  `scope = drive.file` и `root_folder_id`: rclone видит только свою папку;
+- remote `gdrive-backups-encrypted` — `crypt` поверх него. Содержимое и
+  имена файлов шифруются на сервере, Google хранит только шифр;
+- команда `rclone copy`, а не `sync`: удаление локально не удаляет копию в
+  облаке. Старые архивы удаляет отдельный `rclone delete --min-age` мимо
+  корзины Drive, срок тот же, что локально: в облаке архивы за последние
+  7 дней и 4 недельных;
+- если отправка упала, приходит сообщение в Telegram, как и для бэкапа.
+
+Имена remote здесь и ниже — значения по умолчанию из
+`offsite_rclone_remote_name` в `ansible/roles/offsite/defaults/main.yml`.
+Зашифрованный remote называется так же с суффиксом `-encrypted`.
+
+Отправить вручную и посмотреть, что лежит в облаке:
+
+```sh
+sudo homelab-offsite
+journalctl -u homelab-offsite -n 20
+sudo rclone lsl gdrive-backups-encrypted:backup
+```
+
+Скачать и расшифровать архив на ПК: собрать на ПК `rclone.conf` с теми же
+двумя remote из набора для выживания (см. ниже) и выполнить
+
+```sh
+rclone copy <remote-crypt>:backup/daily/<app>_<дата>.tar.gz ~/Downloads
+```
+
+Воскресный архив лежит в `backup/weekly`, а не в `backup/daily`.
+
+### Набор для выживания
+
+Чтобы восстановиться, если сервер и vaultwarden потеряны одновременно,
+нужны: пароль Ansible Vault, оба пароля crypt (`password` и `password2`),
+OAuth-клиент и токен rclone, пароль от аккаунта Google и коды
+восстановления 2FA. Без паролей crypt архивы в облаке не расшифровать
+никак.
+
+Набор существует и хранится офлайн. Его **нет** на сервере, в
+vaultwarden, в этом репозитории, в Google Drive и на ПК в открытом виде.
+
+Полная репетиция восстановления — этап 5 [roadmap](docs/roadmap.md).
 
 Запустить бэкап вручную и посмотреть результат:
 
 ```sh
 sudo systemctl start homelab-backup
 journalctl -u homelab-backup -n 20
-sudo ls -lh /var/backups/homelab/daily
+sudo ls -lh /var/backups/homelab/daily /var/backups/homelab/weekly
 ```
+
+Самый свежий архив обычно в `daily`, но после воскресного запуска — в
+`weekly`. Перед восстановлением смотри оба каталога.
 
 Восстановить приложение из архива:
 
@@ -95,7 +147,7 @@ sudo ls -lh /var/backups/homelab/daily
 cd /opt/<app>
 sudo docker compose down
 sudo mv data data.broken
-sudo tar -xzf /var/backups/homelab/daily/<app>_<дата>.tar.gz
+sudo tar -xzf /var/backups/homelab/<daily|weekly>/<app>_<дата>.tar.gz
 sudo docker compose up -d
 ```
 

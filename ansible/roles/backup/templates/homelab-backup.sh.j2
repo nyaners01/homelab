@@ -6,7 +6,10 @@
 #     и проверяются PRAGMA integrity_check;
 #   - остальные файлы копируются как есть, кроме исключённых каталогов;
 #   - всё упаковывается в {{ backup_dir }}/daily/<app>_<дата>.tar.gz.
-# По воскресеньям архив дополнительно кладётся в weekly/.
+# Каждый каталог из <backup_extra_dirs> копируется как есть
+# и упаковывается в {{ backup_dir }}/daily/<name>_<дата>.tar.gz
+# По воскресеньям архив пишется только в weekly/, а не в daily/: иначе
+# один и тот же файл лежал бы в двух каталогах и дважды уходил в облако.
 # У каждого приложения хранятся {{ backup_keep_daily }} последних daily и
 # {{ backup_keep_weekly }} последних weekly архивов. Старые удаляются только после
 # успешного нового архива, поэтому неудачные запуски ничего не стирают.
@@ -16,87 +19,113 @@ umask 077
 
 DEST={{ backup_dir }}
 DATE=$(date +%F)
+PERIOD="daily"
+if [ "$(date +%u)" = 7 ]; then
+  PERIOD="weekly"
+fi
+
 mkdir -p "$DEST/daily" "$DEST/weekly"
 
 # Оставить в каталоге $1 только $3 последних архивов приложения $2.
 # Имена <app>_<ГГГГ-ММ-ДД>.tar.gz, glob сортирует их по дате.
 prune() {
-    local dir=$1 app=$2 keep=$3
-    local files=("$dir/${app}"_[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].tar.gz)
-    [ -e "${files[0]}" ] || return 0
-    # Число файлов через $#, а не через решётку в фигурных скобках:
-    # для Jinja такая пара означает начало комментария
-    set -- "${files[@]}"
-    (( $# > keep )) || return 0
-    rm -f -- "${files[@]:0:$#-keep}"
+  local dir=$1 app=$2 keep=$3
+  local files=("$dir/${app}"_[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].tar.gz)
+  [ -e "${files[0]}" ] || return 0
+  # Число файлов через $#, а не через решётку в фигурных скобках:
+  # для Jinja такая пара означает начало комментария
+  set -- "${files[@]}"
+  (( $# > keep )) || return 0
+  rm -f -- "${files[@]:0:$#-keep}"
 }
 
-# Внимание: функция вызывается как «backup_app ... || failed=1», а в таком
+# Упаковать $3 из каталога $2 в $PERIOD/<$1>_<дата>.tar.gz (daily/, по
+# воскресеньям weekly/), затем удалить старые архивы.
+# Вызывается из функций, где set -e уже отключён, поэтому каждая команда
+# проверяется явно. Свой fail здесь не объявляется: функции в bash глобальные,
+# и он подменил бы fail вызывающей функции.
+save_archive() {
+  local name=$1 dir=$2 path=$3
+  local out="$DEST/$PERIOD/${name}_${DATE}.tar.gz"
+
+  tar -C "$dir" -czf "$out.tmp" "$path" || { rm -f "$out.tmp"; echo "$name: не удалось упаковать архив" >&2; return 1; }
+  mv "$out.tmp" "$out" || { echo "$name: не удалось сохранить $out" >&2; return 1; }
+
+  prune "$DEST/daily" "$name" {{ backup_keep_daily }} || { echo "$name: не удалось удалить старые daily" >&2; return 1; }
+  prune "$DEST/weekly" "$name" {{ backup_keep_weekly }} || { echo "$name: не удалось удалить старые weekly" >&2; return 1; }
+
+  echo "$name: $(du -h "$out" | cut -f1) $out"
+}
+
+# Внимание: функция вызывается как "backup_extra_dir ... || failed=1", а в таком
+# контексте bash отключает set -e внутри неё. Поэтому каждая команда здесь
+# проверяется явно, и любая ошибка возвращает 1 без архива.
+backup_extra_dir() {
+  local name=$1 src=$2
+
+  [ -d "$src" ] || { echo "$name: нет каталога $src" >&2; return 1; }
+
+  save_archive "$name" "$src" .
+}
+
+# Внимание: функция вызывается как "backup_app ... || failed=1", а в таком
 # контексте bash отключает set -e внутри неё. Поэтому каждая команда здесь
 # проверяется явно, и любая ошибка возвращает 1 без архива.
 backup_app() {
-    local app=$1
-    local sqlite=$2
-    local exclude=$3
-    local src={{ apps_base_dir }}/$app/data
-    local work="" out db check
+  local app=$1
+  local sqlite=$2
+  local exclude=$3
+  local src={{ apps_base_dir }}/$app/data
+  local work="" db check
 
-    fail() {
-        echo "$app: $*" >&2
-        [ -n "$work" ] && rm -rf "$work"
-        return 1
-    }
+  fail() {
+    echo "$app: $*" >&2
+    [ -n "$work" ] && rm -rf "$work"
+    return 1
+  }
 
-    [ -d "$src" ] || { fail "нет каталога $src"; return 1; }
+  [ -d "$src" ] || { fail "нет каталога $src"; return 1; }
 
-    # Базу проверяем до sqlite3: на несуществующем пути он молча создал бы
-    # пустую базу, и она ушла бы в архив как настоящая
-    for db in $sqlite; do
-        [ -s "$src/$db" ] || { fail "нет базы $src/$db или она пустая"; return 1; }
-    done
+  # Базу проверяем до sqlite3: на несуществующем пути он молча создал бы
+  # пустую базу, и она ушла бы в архив как настоящая
+  for db in $sqlite; do
+    [ -s "$src/$db" ] || { fail "нет базы $src/$db или она пустая"; return 1; }
+  done
 
-    work=$(mktemp -d) || { fail "не удалось создать временный каталог"; return 1; }
+  work=$(mktemp -d) || { fail "не удалось создать временный каталог"; return 1; }
 
-    local tar_excludes=()
-    for db in $sqlite; do
-        tar_excludes+=("--exclude=./$db" "--exclude=./$db-wal" "--exclude=./$db-shm" "--exclude=./$db-journal")
-    done
-    for e in $exclude; do
-        tar_excludes+=("--exclude=./$e")
-    done
+  local tar_excludes=()
+  for db in $sqlite; do
+    tar_excludes+=("--exclude=./$db" "--exclude=./$db-wal" "--exclude=./$db-shm" "--exclude=./$db-journal")
+  done
+  for e in $exclude; do
+    tar_excludes+=("--exclude=./$e")
+  done
 
-    mkdir "$work/data" || { fail "не удалось создать $work/data"; return 1; }
-    if ! tar -C "$src" "${tar_excludes[@]}" -cf - . | tar -C "$work/data" -xpf -; then
-        fail "не удалось скопировать файлы из $src"; return 1
-    fi
+  mkdir "$work/data" || { fail "не удалось создать $work/data"; return 1; }
+  if ! tar -C "$src" "${tar_excludes[@]}" -cf - . | tar -C "$work/data" -xpf -; then
+    fail "не удалось скопировать файлы из $src"; return 1
+  fi
 
-    for db in $sqlite; do
-        sqlite3 "$src/$db" ".backup '$work/data/$db'"             || { fail "sqlite3 .backup для $db завершился с ошибкой"; return 1; }
-        [ -s "$work/data/$db" ] || { fail "копия $db пустая"; return 1; }
-        # -readonly: если копии вдруг нет, sqlite3 не создаст пустую
-        check=$(sqlite3 -readonly "$work/data/$db" "PRAGMA integrity_check;")             || { fail "не удалось проверить копию $db"; return 1; }
-        [ "$check" = "ok" ] || { fail "копия $db не прошла проверку: $check"; return 1; }
-    done
+  for db in $sqlite; do
+    sqlite3 "$src/$db" ".backup '$work/data/$db'"             || { fail "sqlite3 .backup для $db завершился с ошибкой"; return 1; }
+    [ -s "$work/data/$db" ] || { fail "копия $db пустая"; return 1; }
+    # -readonly: если копии вдруг нет, sqlite3 не создаст пустую
+    check=$(sqlite3 -readonly "$work/data/$db" "PRAGMA integrity_check;")             || { fail "не удалось проверить копию $db"; return 1; }
+    [ "$check" = "ok" ] || { fail "копия $db не прошла проверку: $check"; return 1; }
+  done
 
-    out="$DEST/daily/${app}_${DATE}.tar.gz"
-    tar -C "$work" -czf "$out.tmp" data || { rm -f "$out.tmp"; fail "не удалось упаковать архив"; return 1; }
-    mv "$out.tmp" "$out" || { fail "не удалось сохранить $out"; return 1; }
-    rm -rf "$work"
-    work=""
-
-    if [ "$(date +%u)" = 7 ]; then
-        cp "$out" "$DEST/weekly/" || { fail "не удалось скопировать архив в weekly"; return 1; }
-    fi
-
-    prune "$DEST/daily" "$app" {{ backup_keep_daily }} || { fail "не удалось удалить старые daily"; return 1; }
-    prune "$DEST/weekly" "$app" {{ backup_keep_weekly }} || { fail "не удалось удалить старые weekly"; return 1; }
-
-    echo "$app: $(du -h "$out" | cut -f1) $out"
+  save_archive "$app" "$work" data || { rm -rf "$work"; return 1; }
+  rm -rf "$work"
 }
 
 failed=0
 {% for app in apps if app.backup is defined %}
 backup_app {{ app.name | quote }} {{ app.backup.sqlite | join(' ') | quote }} {{ app.backup.exclude | join(' ') | quote }} || failed=1
+{% endfor %}
+
+{% for extra_dir in backup_extra_dirs %}
+backup_extra_dir {{ extra_dir.name | quote }} {{ extra_dir.path | quote }} || failed=1
 {% endfor %}
 
 exit $failed

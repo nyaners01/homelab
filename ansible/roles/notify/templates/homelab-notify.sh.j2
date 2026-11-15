@@ -10,16 +10,16 @@ unit=$1
 # Сообщение размечено HTML, поэтому всё, что приходит снаружи
 # (имя юнита, описание, журнал), экранируется
 html_escape() {
-    sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+  sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
 }
 
 # Токен передаётся через конфиг curl на stdin, а не аргументом:
 # аргументы процесса видны всем пользователям сервера в ps
 send() {
-    printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$TELEGRAM_TOKEN" |
-        curl -fsS --max-time 20 --retry 3 -o /dev/null -K - \
-            --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
-            "$@"
+  printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$TELEGRAM_TOKEN" |
+    curl -fsS --max-time 20 --retry 3 -o /dev/null -K - \
+      --data-urlencode "chat_id=$TELEGRAM_CHAT_ID" \
+      "$@"
 }
 
 host=$(hostname)
@@ -30,8 +30,8 @@ when=$(TZ=Europe/Moscow date '+%d.%m.%Y %H:%M МСК')
 desc=""
 result=""
 if [ "$(systemctl show -p LoadState --value "$unit" 2>/dev/null)" = loaded ]; then
-    desc=$(systemctl show -p Description --value "$unit")
-    result=$(systemctl show -p Result --value "$unit")
+  desc=$(systemctl show -p Description --value "$unit")
+  result=$(systemctl show -p Result --value "$unit")
 fi
 
 # -I: только последний запуск юнита, то есть тот, что упал. Без него в
@@ -40,19 +40,19 @@ log=$(journalctl -u "$unit" -I -n 30 -o cat --no-pager 2>/dev/null || true)
 
 text="🔴 <b>$(html_escape <<<"$unit")</b> завершился с ошибкой"
 if [ -n "$desc" ]; then
-    text+=$'\n'"$(html_escape <<<"$desc")"
+  text+=$'\n'"$(html_escape <<<"$desc")"
 fi
 text+=$'\n\n'"🖥 $(html_escape <<<"$host") · 🕒 $when"
 if [ -n "$result" ] && [ "$result" != success ]; then
-    text+=" · $(html_escape <<<"$result")"
+  text+=" · $(html_escape <<<"$result")"
 fi
 if [ -n "$log" ]; then
-    text+=$'\n\n'"<pre>$(html_escape <<<"$log")</pre>"
+  text+=$'\n\n'"<pre>$(html_escape <<<"$log")</pre>"
 fi
 text+=$'\n\n'"<code>journalctl -u $(html_escape <<<"$unit") -I</code>"
 
 # Если Telegram не принял сообщение (например, журнал длиннее лимита
 # в 4096 символов), отправить короткое без журнала, чтобы ошибка не потерялась
 if ! send --data-urlencode "parse_mode=HTML" --data-urlencode "text=$text"; then
-    send --data-urlencode "text=$host: $unit завершился с ошибкой. Подробное сообщение не отправилось, журнал: journalctl -u $unit -I"
+  send --data-urlencode "text=$host: $unit завершился с ошибкой. Подробное сообщение не отправилось, журнал: journalctl -u $unit -I"
 fi
