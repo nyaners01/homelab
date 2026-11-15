@@ -21,6 +21,11 @@ k3s и файрвол, память, мёртвые компоненты), до�
 как второй публичный сервис с PostgreSQL (этап 2а), учебный .NET-сервис
 убран, NAS с Immich и SMB отложен до второй машины (раздел 5).
 
+Правка от 15.11.2026: gitlab.com не пускает без подтверждения телефоном или
+картой, российские не проходят. Этапы 1 и 9 переписаны под GitHub и GitHub
+Actions, GitLab CE переезжает на вторую машину (раздел 5), синтаксис GitLab
+CI до тех пор держится шпаргалкой в заметках этапа 1.
+
 ## 1. Где я сейчас
 
 Оценка по коду и истории коммитов на 02.10.2026. Весь репозиторий сделан за
@@ -137,7 +142,9 @@ operators и CRD, Gateway API.
 **CI/CD.** Обязательно: строит пайплайн GitLab CI: stages, jobs, `rules`,
 `artifacts`, `cache`, окружения, ручное подтверждение; настраивает и
 защищает runner; GitOps через Argo CD; умеет откатить. Желательно: Renovate
-или аналог, сканирование образов, GitHub Actions как второй синтаксис.
+или аналог, сканирование образов, GitHub Actions как второй синтаксис. В
+этом плане наоборот: основной CI — GitHub Actions, GitLab CI до второй
+машины держится шпаргалкой (этап 1, раздел 5).
 
 **Наблюдаемость.** Обязательно: ставит Prometheus, пишет PromQL и alerting
 rules, настраивает Alertmanager с маршрутизацией, строит дашборды Grafana;
@@ -167,8 +174,8 @@ Terraform; понимает, за что платит; знает, что из �
 каждый алерт; формулирует SLI и SLO. Желательно: error budget, burn rate,
 дежурства по графику.
 
-**Работа с кодом.** Обязательно: MR и ревью даже в одиночку, CI на каждый
-MR, документация рядом с кодом и актуальная, решения записаны с
+**Работа с кодом.** Обязательно: PR (в GitLab — MR) и ревью даже в
+одиночку, CI на каждый PR, документация рядом с кодом и актуальная, решения записаны с
 аргументами. Желательно: ADR как формат, тесты инфраструктуры там, где цена
 ошибки высока, скрипты на Bash и Python для рутины.
 
@@ -176,7 +183,7 @@ MR, документация рядом с кодом и актуальная, �
 
 Правила для всех этапов:
 
-- ветка, MR, зелёный CI, merge. Прямых коммитов в `master` больше нет;
+- ветка, PR, зелёный CI, merge. Прямых коммитов в `master` больше нет;
 - любое изменение на сервере сначала `--check --diff`;
 - новый сервис — новая папка в `services/` со своим README; манифесты
   кластера в `k8s/`, инфраструктура облака в `terraform/`, правило
@@ -264,7 +271,7 @@ own client_id.
 `sync` опасен; что будет, если потерять ключ шифрования; что такое
 immutable backup и как его получить на обычном облачном диске.
 
-### Этап 1. CI и рабочий процесс на GitLab
+### Этап 1. CI и рабочий процесс на GitHub
 
 - [ ] сделано
 
@@ -272,18 +279,23 @@ immutable backup и как его получить на обычном обла�
 
 **Сделать:**
 
-- Проект на gitlab.com, он становится местом работы: MR, защищённые ветки,
-  пайплайны. GitHub остаётся как зеркало через push mirroring (бесплатно);
-  pull mirroring с GitHub в GitLab платный, поэтому направление именно
-  такое. Записать решение в plan.md: что где живёт и почему. find-air
-  остаётся на GitHub с GitHub Actions — так в портфолио оба синтаксиса.
-- `.gitlab-ci.yml` со stages `lint` и `check`: `yamllint`, `ansible-lint`
-  с профилем `production`, `ansible-playbook playbooks/site.yml
-  --syntax-check`. Коллекции через `cache` по `requirements.yml`, отчёт
-  линтера как `artifacts`, `rules` так, чтобы пайплайн шёл на MR и на
-  `master`, но не дважды на одном коммите. Vault в CI не расшифровывается:
-  `vault.yml` подменяется на `vault.example.yml`, пароль — фиктивный файл
-  через `ANSIBLE_VAULT_PASSWORD_FILE`.
+- Место работы — GitHub, репозиторий публичный: PR, Rulesets, GitHub
+  Actions. Первоначальный план с gitlab.com отменён 15.11.2026: регистрация
+  требует подтверждения телефоном или картой, российские не проходят.
+  GitLab откладывается до self-hosted GitLab CE на второй машине (раздел
+  5): на Orange Pi с 4 ГБ он не помещается. Записать решение в plan.md,
+  раздел «Отложенные решения»: что где живёт, почему и при каком условии
+  пересматривается.
+- `.github/workflows/ci.yml` с job `lint` и `check` (`needs: lint`):
+  `yamllint`, `ansible-lint` с профилем `production`, `ansible-playbook
+  playbooks/site.yml --syntax-check`. Инструменты ставятся через pip в
+  шагах job, а не готовыми actions — версии видны и закреплены. Коллекции
+  через `actions/cache` с ключом по `hashFiles` от `requirements.yml`,
+  отчёт линтера через `actions/upload-artifact`. Триггеры `on:` так, чтобы
+  workflow шёл на PR и на `master`, но не дважды на одном коммите. Vault в
+  CI не расшифровывается: `vault.yml` подменяется на `vault.example.yml`,
+  пароль — фиктивный файл через `ANSIBLE_VAULT_PASSWORD_FILE`. `permissions:
+  contents: read` на уровне workflow — минимальные права `GITHUB_TOKEN`.
 - `.yamllint.yml`, `.ansible-lint`, `.pre-commit-config.yaml` с теми же
   проверками плюс `gitleaks`, чтобы секрет не ушёл в git раньше, чем его
   поймает `.gitignore`. Один раз прогнать `gitleaks` по всей истории.
@@ -293,34 +305,47 @@ immutable backup и как его получить на обычном обла�
   stop`. Задача не «исправить всё», а решить по каждому правилу: чинить
   или отключать, и почему. Список отключённых правил с причинами —
   в `.ansible-lint` комментариями.
-- Защита `master` в GitLab: MR обязателен, пайплайн обязателен, push
-  запрещён всем, включая себя.
-- Бейдж пайплайна в README.
+- Защита `master` через Ruleset (Settings → Rules): PR обязателен,
+  обязательные status checks `lint` и `check`, запрет force push и
+  удаления, пустой bypass list — правило действует и на владельца.
+- Бейдж статуса workflow в README.
+- Шпаргалка GitLab CI в `docs/notes/01-ci.md`: тот же пайплайн, переведённый
+  в `.gitlab-ci.yml` — `stages`, `rules` вместо `on:`, `cache:key:files`,
+  `artifacts:reports`, protected variables вместо environment secrets.
+  По желанию (+2 часа) прогнать его локально через `gitlab-ci-local`:
+  синтаксис щупается руками без аккаунта на gitlab.com.
 
-**Почему так.** GitLab CI — главный CI на рынке РФ, вопрос «напишите
-пайплайн со stages, rules, artifacts, cache и настройте runner» — самый
-частый практический. GitHub Actions уже есть в find-air, и этого достаточно,
-чтобы объяснить разницу. Альтернативы для собеседования: Jenkins с
+**Почему так.** GitLab CI — главный CI на рынке РФ, но gitlab.com из РФ
+сейчас недоступен без чужого телефона или карты, а self-hosted GitLab на
+эту плату не помещается. Концепции у двух систем общие: stages и job с
+`needs`, условия запуска, cache против artifacts, защищённые ветки,
+секреты с ограниченной областью видимости. Учить их на GitHub Actions, а
+синтаксис GitLab держать шпаргалкой — честный компромисс, о котором можно
+рассказать на собеседовании. Альтернативы для собеседования: Jenkins с
 Jenkinsfile, Drone и Woodpecker как лёгкие self-hosted, Octopus как
 deployment-инструмент с окружениями, который ты уже видел.
 
-**Теория:** GitLab docs, CI/CD YAML syntax reference, разделы `rules`,
-`cache`, `artifacts`; ansible-lint docs, Rules и Profiles.
+**Теория:** GitHub docs, Workflow syntax, Caching dependencies, Storing
+workflow data as artifacts, About rulesets, Security hardening for GitHub
+Actions; GitLab docs, CI/CD YAML syntax reference, разделы `rules`,
+`cache`, `artifacts` — для шпаргалки; ansible-lint docs, Rules и Profiles.
 
-**Готово, когда:** MR с ошибкой в YAML или задачей без `name` блокируется
-пайплайном; `master` не принимает прямой push; `pre-commit run -a`
-проходит; `gitleaks` в pre-commit ловит подложенный тестовый токен; в
-`.ansible-lint` у каждого отключённого правила есть причина;
-`docs/notes/01-ci.md` с ответами.
+**Готово, когда:** PR с ошибкой в YAML или задачей без `name` блокируется
+workflow; `master` не принимает прямой push, в том числе от владельца;
+`pre-commit run -a` проходит; `gitleaks` в pre-commit ловит подложенный
+тестовый токен; в `.ansible-lint` у каждого отключённого правила есть
+причина; `docs/notes/01-ci.md` с ответами и шпаргалкой GitLab CI.
 
 **Время:** 12 часов.
 
 **Вопросы на собеседовании:** чем `--syntax-check` отличается от `--check`;
 как хранить секреты в CI и чем плох `echo $SECRET`; что такое
 идемпотентность и как её проверить автоматически; зачем линтер
-инфраструктурному коду; как устроены `rules`, `needs` и `cache` в GitLab
-CI и чем `cache` отличается от `artifacts`; что такое protected branch и
-protected variable.
+инфраструктурному коду; как устроены `needs` и `cache` в GitHub Actions и
+`rules`, `needs` и `cache` в GitLab CI, чем `cache` отличается от
+`artifacts`; чем `pull_request` отличается от `pull_request_target` и
+почему второй опасен; что такое protected branch и protected variable и
+что им соответствует на GitHub.
 
 ### Этап 2. Долги ревью, сайты nginx как шаблоны, certbot в коде
 
@@ -355,7 +380,7 @@ protected variable.
   `rate_limit_login`, `real_ip`, `lan_only`, размер тела запроса. Сниппеты
   — отдельные `include`-файлы в `snippets/`, шаблон подключает их по
   флагам. Пятый сайт тогда стоит столько же, сколько второй: пять строк в
-  переменных, домен в `tls_domains`, MR. nginx на Orange Pi — единая
+  переменных, домен в `tls_domains`, PR. nginx на Orange Pi — единая
   входная точка дома на весь план: один внешний IP, один проброс, один
   TLS-терминатор, upstream'ы где угодно. Условие «третий сайт» в правилах —
   момент перечитать решение о прокси, не лимит.
@@ -801,7 +826,7 @@ OpenVPN; как ограничить VPN-клиента одной сетью; �
 таблице nftables не спасает от DROP в таблице Docker; как трафик из VPN
 возвращается обратно.
 
-### Этап 9. Доставка: GitLab Runner и деплой по merge
+### Этап 9. Доставка: self-hosted runner GitHub Actions и деплой по merge
 
 - [ ] сделано
 
@@ -809,23 +834,41 @@ OpenVPN; как ограничить VPN-клиента одной сетью; �
 
 **Сделать:**
 
-- GitLab Runner на сервере, ARM64, роль `gitlab_runner`: отдельный
-  пользователь, shell executor, токен регистрации в Vault, runner
-  привязан к проекту, помечен тегом, **protected**: запускает job только
-  из защищённых веток и MR из своего проекта.
+- Сначала модель угроз в plan.md, до первой строки кода: от кого
+  защищаемся (чужой PR из форка в публичный репозиторий, утёкший токен,
+  свой же баг) и чем. GitHub прямо не советует self-hosted runner на
+  публичном репозитории: PR из форка приносит свой workflow-файл, и
+  `if:` в нём ничего не защищает — автор PR его просто перепишет. У GitLab
+  на это был protected runner, у GitHub такого нет, защита собирается из
+  нескольких настроек ниже. Если модель угроз говорит «не закрывается» —
+  запасной вариант `ansible-pull` по таймеру с `master`: runner на проде
+  не нужен вовсе, но `--check` на PR тогда только на GitHub-hosted runner
+  без доступа к серверу. Выбрать, записать, сделать.
+- Runner на сервере, ARM64, роль `github_runner`: отдельный пользователь,
+  systemd-юнит, runner привязан к репозиторию, своя метка (`homelab`), а
+  не только `self-hosted`. Режим `--ephemeral`: один job — один запуск,
+  между job ничего не остаётся. Токен регистрации живёт час, в Vault его
+  не положить: роль либо получает его через API по fine-grained PAT из
+  Vault с правом только на этот репозиторий, либо принимает через `-e`.
+  Решить и записать.
+- Настройки репозитория: Actions → «Require approval for all external
+  contributors» для PR из форков; `permissions:` в каждом workflow
+  минимальные; никакого `pull_request_target` с checkout кода из PR.
 - Runner ходит на сервер **по SSH**, не через `ansible_connection: local`:
   inventory `ci/hosts.yml` с `ansible_host: 127.0.0.1` и отдельным ключом,
   пользователь с ограниченным sudo. Иначе страховка роли firewall — ping
   по новому SSH-соединению — проходит всегда, таймер отката снимается, а
   SSH может быть реально закрыт. `assert` из этапа 2 это ловит.
-- `.gitlab-ci.yml`, stage `deploy`: на MR — `ansible-playbook
-  playbooks/site.yml --check --diff`, результат в лог job и в комментарий
-  MR; `rules` ограничивают job MR из своего проекта
-  (`$CI_MERGE_REQUEST_SOURCE_PROJECT_ID == $CI_PROJECT_ID`). На `master` —
-  `--diff` без `--check`, `environment: production`. Пароль Vault —
-  protected и masked переменная типа file. Job с `--check` — обязательный
-  в настройках защищённой ветки: так правило «любое изменение сначала
-  `--check --diff`» выполняется автоматически.
+- `.github/workflows/deploy.yml`: на PR — `ansible-playbook
+  playbooks/site.yml --check --diff` на runner `homelab`, результат в лог
+  job и в комментарий PR (`permissions: pull-requests: write`). На push в
+  `master` — `--diff` без `--check`, `environment: production`. Пароль
+  Vault — секрет окружения `production`, у окружения deployment branches
+  только `master`: job из любой другой ветки секрет не получит. Решить,
+  откуда пароль берёт job с `--check` (отдельное окружение `check`, нужен ли
+  ему required reviewer). Job с `--check` — обязательный status check в
+  Ruleset `master`: так правило «любое изменение сначала `--check --diff`»
+  выполняется автоматически.
 - `healthcheck` в compose у vaultwarden и find-air и `wait: true` в
   `docker_compose_v2` (community.docker ≥ 3.8): сам по себе `healthcheck`
   не заставляет `up` ждать. В `python-slim` образе find-air нет `curl`,
@@ -833,41 +876,48 @@ OpenVPN; как ограничить VPN-клиента одной сетью; �
   После playbook шаг `curl -f https://vaultwarden.nyaners.ru/alive`.
 - Trivy в CI find-air (GitHub Actions): скан образа, fail на critical.
   Два часа, спрашивают.
-- Renovate: сокращённо. Hosted-приложения для gitlab.com нет, Renovate
-  запускается как scheduled pipeline из образа `renovate/renovate` с
-  токеном проекта. Следит за тегами образов в `docker-compose.yaml` и
-  коллекциями в `requirements.yml`. Мажорные обновления vaultwarden только
-  вручную. Если не укладывается в бюджет — отложить, в РФ-вакансиях
+- Renovate: сокращённо. Бесплатное GitHub App Renovate, без своего
+  scheduled-запуска. Следит за тегами образов в `docker-compose.yaml` и
+  коллекциями в `requirements.yml` — Dependabot коллекции Ansible не
+  понимает, поэтому именно Renovate. Мажорные обновления vaultwarden
+  только вручную. Если не укладывается в бюджет — отложить, в РФ-вакансиях
   Renovate почти не встречается.
 - Откат: инструкция в README, `git revert` плюс merge, деплой сделает
   остальное. Проверить один раз на find-air.
-- Записать в plan.md: модель угроз runner на проде — от кого защищаемся
-  (чужой MR, утёкший токен, свой же баг) и чем.
 
-**Почему так.** Это замыкает цикл: MR проверяется `--check`, merge
+**Почему так.** Это замыкает цикл: PR проверяется `--check`, merge
 применяет, healthcheck подтверждает, алерт из этапа 6 ловит остальное.
-Protected runner и `rules` закрывают сценарий «починил опечатку, стал
-contributor, следующий MR выполняет код на проде», который у GitHub
-self-hosted runner на публичном репозитории закрывается плохо. Для
-собеседования: `ansible-pull` как pull-модель для серверов, docker
-executor против shell, blue-green и canary.
+Сценарий «починил опечатку, стал contributor, следующий PR выполняет код
+на проде» у self-hosted runner на публичном репозитории — главный риск
+этапа, и то, как он закрыт настройками без protected runner, — хороший
+рассказ на собеседовании. Для собеседования: `ansible-pull` как
+pull-модель для серверов, protected runner и `rules` в GitLab как то же
+самое «из коробки», shell executor против docker в GitLab Runner,
+blue-green и canary.
 
-**Теория:** GitLab docs, Runner executors, Protected runners, Secure CI/CD
-variables; Docker Compose, `healthcheck`; community.docker,
+**Теория:** GitHub docs, About self-hosted runners (раздел про
+безопасность), Security hardening for GitHub Actions, Using environments
+for deployment, Approving workflow runs from public forks, ephemeral и JIT
+runners; GitLab docs, Protected runners и Runner executors — для
+сравнения; Docker Compose, `healthcheck`; community.docker,
 `docker_compose_v2`, параметр `wait`.
 
-**Готово, когда:** merge MR обновляет сервер без ручных действий; MR с
-ошибкой в роли получает diff от `--check` и не может быть смержен; MR из
-форка не запускает job на runner; смена тега find-air на несуществующий
+**Готово, когда:** merge PR обновляет сервер без ручных действий; PR с
+ошибкой в роли получает diff от `--check` и не может быть смержен; PR из
+форка не запускает job на runner без ручного одобрения; job не из
+`master` не получает пароль Vault; смена тега find-air на несуществующий
 роняет job, а не сервис; откат через revert занимает меньше 10 минут;
 `docs/notes/09-delivery.md`.
 
-**Время:** 12 часов (плюс 4, если Renovate).
+**Время:** 14 часов (плюс 2, если Renovate).
 
 **Вопросы:** чем GitOps отличается от CI-деплоя по SSH; как сделать деплой
-безопасным, если runner стоит на проде; чем shell executor отличается от
+безопасным, если runner стоит на проде; почему GitHub не советует
+self-hosted runner на публичном репозитории и что ты сделал вместо
+protected runner; чем секрет окружения отличается от секрета репозитория
+и от protected variable в GitLab; чем shell executor отличается от
 docker; что такое rolling, blue-green, canary; как откатить, если миграция
-базы необратима; что такое protected runner и protected variable.
+базы необратима.
 
 ### Этап 10. k3s на сервере
 
@@ -965,11 +1015,11 @@ Storage.
   живёт ключ и как ротируется. Выбрать, записать, сделать. Ключ — в
   бэкап. Задачу `kubernetes.core.k8s` из этапа 10 удалить.
 - Полный путь без ручных команд: релиз в репозитории бота, образ в GHCR,
-  новый тег в `values.yaml` (Renovate или руками в MR), merge, Argo
+  новый тег в `values.yaml` (Renovate или руками в PR), merge, Argo
   синхронизирует, под перезапущен.
 - Дрейф: поменять реплики руками через `kubectl scale`, увидеть
   `OutOfSync`, увидеть, как `selfHeal` возвращает.
-- `helm lint` и `helm template` в `.gitlab-ci.yml` на каждый MR.
+- `helm lint` и `helm template` в GitHub Actions на каждый PR.
 
 **Почему так.** Argo CD в целевом стеке, и это самая частая GitOps-связка в
 вакансиях. Для собеседования: Flux как альтернатива с теми же идеями,
@@ -983,7 +1033,7 @@ SOPS, чтобы сравнить.
 **Готово, когда:** push тега в `values.yaml` приводит к новому поду без
 команд с ПК; ручное изменение в кластере откатывается Argo за 3 минуты;
 зашифрованный секрет лежит в git и ревьюер не может его прочитать;
-`helm lint` и `helm template` в CI на каждый MR; `free -m` после суток не
+`helm lint` и `helm template` в CI на каждый PR; `free -m` после суток не
 меньше 500 МБ available; `docs/notes/11-argocd.md` с моделью угроз
 своими словами.
 
@@ -1020,7 +1070,7 @@ Secrets отличается от SOPS и когда что.
 - Для рынка РФ Cloudflare нерелевантен; знать, что у Yandex Cloud есть
   Cloud DNS у того же провайдера, платный, но копейки. Если решишь
   нарушить «только бесплатное» ради релевантности — записать в plan.md.
-- CI: `tofu fmt -check`, `validate`, `tflint`, `plan` на MR.
+- CI: `tofu fmt -check`, `validate`, `tflint`, `plan` на PR.
 
 **Сделать, часть 2, спринт в Yandex Cloud (месяц 6, 2–3 недели):**
 
@@ -1055,7 +1105,7 @@ Secrets отличается от SOPS и когда что.
 provider docs и quickstart, troubleshooting про registry; Cloudflare
 provider docs.
 
-**Готово, когда:** записи DNS меняются только через MR и `tofu apply`;
+**Готово, когда:** записи DNS меняются только через PR и `tofu apply`;
 `tofu plan` без изменений даёт ноль; три ВМ в Yandex Cloud подняты одним
 `apply`, прошли `hardening.yml` через dynamic inventory, одна подключена к
 k3s как узел и выдержала `drain`; всё уничтожено, в консоли нет ресурсов,
@@ -1327,7 +1377,15 @@ Intel 8-го поколения и новее, 16 ГБ ОЗУ, NVMe под си�
   бэкап-скрипты. Тонкий edge и толстый compute — архитектура, которую
   можно объяснять на собеседовании;
 - Immich и Samba — сервисы с реальными домашними пользователями: окна
-  обслуживания, RPO для чужих фото, объяснение, почему не работает.
+  обслуживания, RPO для чужих фото, объяснение, почему не работает;
+- GitLab CE в Docker на NAS (решено 15.11.2026, этап 1): gitlab.com из РФ
+  не регистрирует без подтверждения телефоном или картой, а GitLab с его
+  потребностью около 4 ГБ RAM на Orange Pi не помещается. Отдельный этап на 10–12 часов: GitLab
+  через Ansible, бэкап `gitlab-backup` в контур этапа 5, репозиторий
+  переезжает, GitHub становится зеркалом через push mirroring, workflow
+  переводятся в `.gitlab-ci.yml` по шпаргалке этапа 1, деплой — через
+  protected runner вместо настроек этапа 9. Тогда пункт «GitLab CI» из
+  раздела 2 закрывается руками, а не шпаргалкой.
 
 Бэкап фотоархива: решено 03.10.2026 — холодный диск, не облако. Зеркало
 внутри NAS не бэкап. Внешний USB-диск, подключается раз в месяц по таймеру
@@ -1342,7 +1400,7 @@ Intel 8-го поколения и новее, 16 ГБ ОЗУ, NVMe под си�
 ## 6. Горизонты
 
 **Месяц 1, октябрь 2026.** Этапы 0, 1, 2, 2а. Около 36 часов. Результат:
-пароли в облаке с первой недели, репозиторий с CI на GitLab, без долгов
+пароли в облаке с первой недели, репозиторий с CI на GitHub Actions и защищённым `master`, без долгов
 ревью, Firefly III с PostgreSQL как второй публичный сервис, бэкап умеет
 `pg_dump`.
 
@@ -1354,7 +1412,7 @@ split DNS, SSD и Ethernet, репетиция восстановления пр
 
 **Месяцы 4–6, январь–март 2027.** Этапы 9, 10, 11, 12 (DNS в январе,
 спринт в облаке в марте), первые инциденты из 14. Около 105 часов.
-Результат: деплой по merge через GitLab Runner, k3s с find-air, Helm,
+Результат: деплой по merge через self-hosted runner GitHub Actions, k3s с find-air, Helm,
 Argo CD, секреты в git, DNS и облако через OpenTofu. Полный путь от релиза
 до пода без ручных команд.
 
@@ -1369,7 +1427,9 @@ Argo CD, секреты в git, DNS и облако через OpenTofu. Пол�
 - `docs/notes/`: ответы своими словами, которые можно повторить вслух;
 - роль firewall с откатом по таймеру и `assert` на local: любимый вопрос
   «как вы меняете файрвол удалённо»;
-- `.gitlab-ci.yml` с protected runner и `--check` на MR;
+- деплой через self-hosted runner на публичном репозитории с моделью
+  угроз и `--check` на PR, плюс шпаргалка GitLab CI и рассказ, чем
+  protected runner GitLab закрыл бы то же самое;
 - пайплайн от релиза find-air до пода в k3s через Argo CD;
 - дашборд Grafana и правила алертов, с рассказом, какие сработали
   по-настоящему;
