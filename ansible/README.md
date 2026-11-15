@@ -60,22 +60,24 @@ chmod 600 ~/.ssh/id_ed25519
 ssh-keyscan 192.168.1.226 >> ~/.ssh/known_hosts
 ```
 
-**Ansible и линтеры.** Ставятся через pipx, системный Ansible из apt не
-используется. Ansible идёт как зависимость ansible-lint, поэтому playbook и
-линтер работают из одного окружения и на одной версии ansible-core:
+**Версии.** Ansible и линтеры ставятся через pipx, системный Ansible из apt
+не используется. ansible-core идёт как зависимость ansible-lint
+(`pipx install --include-deps ansible-lint`), поэтому playbook и линтер
+работают на одной версии. Проверено 15.11.2026:
 
-```sh
-sudo apt install pipx
-pipx ensurepath
-pipx install --include-deps ansible-lint   # ansible-lint и ansible, ansible-playbook, ansible-galaxy
-pipx install yamllint
-pipx install pre-commit
-ansible-lint --version                     # видно, с каким ansible-core он работает
-```
+| Что | Версия | Как стоит |
+|---|---|---|
+| Python | 3.14.4 | системный, в нём venv pipx |
+| pipx | 1.8.0 | apt |
+| ansible-core | 2.22.0 | pipx, в venv ansible-lint |
+| ansible-lint | 26.11.0 | pipx |
+| yamllint | 1.38.0 | pipx |
+| pre-commit | 4.7.0 | pipx |
+| community.docker | 5.4.0 | `ansible-galaxy`, `~/.ansible/collections` |
 
-`pipx upgrade ansible-lint` или `pipx upgrade-all` обновляет и ansible-core,
-которым применяется playbook на сервер. После обновления сначала прогнать
-`--check --diff`.
+Узнать текущие: `ansible-lint --version`, `yamllint --version`,
+`pre-commit --version`, `ansible-galaxy collection list`. После обновления
+через pipx поправить таблицу и сначала прогнать `--check --diff`.
 
 **Коллекции.**
 
