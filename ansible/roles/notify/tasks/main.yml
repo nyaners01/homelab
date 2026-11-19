@@ -1,3 +1,4 @@
+---
 - name: curl для запросов к Telegram API
   ansible.builtin.apt:
     name: curl

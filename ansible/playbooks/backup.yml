@@ -1,3 +1,4 @@
+---
 - name: Бэкапы
   hosts: homelab
   become: true

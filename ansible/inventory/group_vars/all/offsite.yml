@@ -1,3 +1,4 @@
+---
 # backups: настройки rclone
 offsite_rclone_gdrive_client_id: "{{ vault_rclone_gdrive_client_id }}"
 offsite_rclone_gdrive_client_secret: "{{ vault_rclone_gdrive_client_secret }}"

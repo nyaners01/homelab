@@ -1,3 +1,4 @@
+---
 - name: Каталог rclone
   ansible.builtin.file:
     path: "{{ offsite_cache_dir }}"

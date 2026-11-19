@@ -1,3 +1,4 @@
+---
 - name: Какие из этих юнитов есть на сервере
   ansible.builtin.command:
     argv: ["systemctl", "list-unit-files", "--no-legend", "--plain", "{{ item }}"]

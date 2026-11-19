@@ -1,3 +1,4 @@
+---
 # Откуда брать конфиги
 nginx_src_dir: "{{ homelab_services_dir }}/network/nginx"
 

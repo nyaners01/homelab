@@ -1,3 +1,4 @@
+---
 - name: Проверка, что названия архивов не будут пересекаться
   vars:
     apps_names: "{{ apps | map(attribute='name') | list }}"

@@ -1,3 +1,4 @@
+---
 # Образец для inventory/group_vars/all/vault.yml. Сам vault.yml хранится в репозитории
 # только в зашифрованном виде. Создать его:
 #   ansible-vault create inventory/group_vars/all/vault.yml

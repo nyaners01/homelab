@@ -1,3 +1,4 @@
+---
 - name: Certbot с плагином nginx
   ansible.builtin.apt:
     name:

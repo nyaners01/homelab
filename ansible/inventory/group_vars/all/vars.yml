@@ -1,3 +1,4 @@
+---
 # Корень репозитория homelab: роли берут конфиги из services/
 homelab_repo_root: "{{ inventory_dir }}/../.."
 homelab_services_dir: "{{ homelab_repo_root }}/services"

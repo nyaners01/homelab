@@ -1,3 +1,4 @@
+---
 # Все приложения или одно: -e app_filter=vaultwarden
 - name: Приложения
   hosts: homelab

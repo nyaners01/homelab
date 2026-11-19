@@ -1,3 +1,4 @@
+---
 - name: nftables установлен
   ansible.builtin.apt:
     name: nftables

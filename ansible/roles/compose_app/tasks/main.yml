@@ -1,3 +1,4 @@
+---
 - name: "{{ app.name }}: пути"
   ansible.builtin.set_fact:
     app_dir: "{{ apps_base_dir }}/{{ app.name }}"
