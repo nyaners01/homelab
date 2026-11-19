@@ -1,0 +1,15 @@
+---
+extends: default
+
+ignore: |
+  *vault.yml
+  *vault.yaml
+
+rules:
+  line-length:
+    max: 120
+    level: error
+
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
