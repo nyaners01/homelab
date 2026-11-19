@@ -9,8 +9,8 @@
 
 - name: deb пакет rclone
   ansible.builtin.get_url:
-    url: https://github.com/rclone/rclone/releases/download/{{ offsite_rclone_version }}/rclone-{{ offsite_rclone_version }}-linux-arm64.deb
-    checksum: sha256:https://github.com/rclone/rclone/releases/download/{{ offsite_rclone_version }}/SHA256SUMS
+    url: "{{ offsite_rclone_release_url }}/rclone-{{ offsite_rclone_version }}-linux-arm64.deb"
+    checksum: "sha256:{{ offsite_rclone_release_url }}/SHA256SUMS"
     dest: "{{ offsite_deb_dest }}"
     mode: '0600'
   ignore_errors: "{{ ansible_check_mode }}"

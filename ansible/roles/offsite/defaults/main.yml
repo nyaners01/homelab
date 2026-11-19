@@ -1,6 +1,7 @@
 ---
 # Версия rclone
 offsite_rclone_version: v1.75.2
+offsite_rclone_release_url: "https://github.com/rclone/rclone/releases/download/{{ offsite_rclone_version }}"
 # Место хранения deb пакета
 offsite_cache_dir: /var/cache/rclone
 offsite_deb_dest: "{{ offsite_cache_dir }}/rclone-{{ offsite_rclone_version }}-linux-arm64.deb"
