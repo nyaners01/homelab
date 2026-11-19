@@ -1,36 +1,38 @@
 ---
-# get_url в режиме --check всегда сообщает об изменении, поэтому ключ
-# скачивается, только если его ещё нет
-- name: Проверить ключ репозитория Docker
-  ansible.builtin.stat:
-    path: /etc/apt/keyrings/docker.asc
-  register: docker_key
+- name: Пакеты для deb822_repository
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - python3-debian
+    state: present
+    update_cache: true
+    cache_valid_time: 86400
 
-- name: Ключ репозитория Docker
-  when: not docker_key.stat.exists
-  ansible.builtin.get_url:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    dest: /etc/apt/keyrings/docker.asc
-    owner: root
-    group: root
-    mode: "0644"
+- name: Удалить старый формат репозитория Docker
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/docker.list
+    state: absent
 
 - name: Репозиторий Docker
-  ansible.builtin.copy:
-    dest: /etc/apt/sources.list.d/docker.list
-    content: "deb [arch={{ docker_apt_arch }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_facts.distribution_release }} stable\n"
-    owner: root
-    group: root
-    mode: "0644"
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: "https://download.docker.com/linux/{{ ansible_facts.distribution | lower }}"
+    suites: ["{{ ansible_facts.distribution_release | lower }}"]
+    components: [stable]
+    architectures: "{{ docker_apt_arch }}"
+    signed_by: "https://download.docker.com/linux/{{ ansible_facts.distribution | lower }}/gpg"
+    state: present
+    enabled: true
   vars:
     docker_apt_arch: "{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
+  register: docker_repo
 
 - name: Пакеты Docker
   ansible.builtin.apt:
     name: "{{ docker_packages }}"
     state: present
-    update_cache: true
-    cache_valid_time: 86400
+    update_cache: "{{ docker_repo.changed }}"
 
 - name: Настройки демона Docker
   ansible.builtin.copy:
